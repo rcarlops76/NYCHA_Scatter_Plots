@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYCHA Correlation Scatter Plot Picker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0d1b2a;
+    color: white;
+    min-height: 100vh;
+    height: 100%;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  .dashboard {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px 16px 12px 16px;
+  }
+
+  .title-bar {
+    background: #1e2f45;
+    border-left: 5px solid #c9a96e;
+    border-radius: 4px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+  }
+
+  .title-bar h2 {
+    font-size: 17px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 4px;
+  }
+
+  .title-bar p {
+    font-size: 12px;
+    color: #c9a96e;
+    font-family: monospace;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 10px 12px;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .controls label {
+    font-size: 13px;
+    color: #e8d5b0;
+    font-weight: 600;
+    text-align: right;
+    padding-right: 8px;
+  }
+
+  .controls select {
+    width: 100%;
+    padding: 9px 12px;
+    background: #1e2f45;
+    color: #e8d5b0;
+    border: 1px solid #2a3f5a;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23c9a96e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  .controls select:focus {
+    outline: none;
+    border-color: #c9a96e;
+    box-shadow: 0 0 0 2px rgba(201,169,110,0.25);
+  }
+
+  .note {
+    grid-column: 2;
+    font-size: 11px;
+    color: #8fa8c8;
+    font-family: monospace;
+    margin-top: -4px;
+  }
+
+  .btn-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .btn-generate {
+    background: #c9a96e;
+    color: #0d1b2a;
+    border: none;
+    border-radius: 4px;
+    padding: 11px 28px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.18s;
+  }
+
+  .btn-generate:hover {
+    background: #e8c98e;
+  }
+
+  .btn-generate:active {
+    background: #a8893e;
+  }
+
+  .status {
+    font-size: 12px;
+    color: #8fa8c8;
+    font-family: monospace;
+    min-height: 18px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #1e2f45;
+    margin: 4px 0 16px 0;
+  }
+
+  .plot-container {
+    width: 100%;
+    background: #0d1b2a;
+    border: 1px solid #1e2f45;
+    border-radius: 6px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .plot-container.visible {
+    display: block;
+  }
+
+  .plot-container iframe {
+    width: 100%;
+    height: 60vh;
+    min-height: 580px;
+    max-height: 680px;
+    border: none;
+    display: block;
+  }
+
+  .plot-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 7px 14px;
+    background: #1e2f45;
+    border: 1px solid #c9a96e;
+    border-radius: 4px;
+    color: #c9a96e;
+    font-size: 12px;
+    font-family: monospace;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+
+  .plot-link:hover {
+    background: #2a3f5a;
+  }
+
+  .stats-badge {
+    display: inline-block;
+    background: #1e2f45;
+    border: 1px solid #2a3f5a;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #e8d5b0;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <div class="title-bar">
+    <h2>2025 NYCHA Resident Data Book</h2>
+    <p>Correlation Scatter Plot Generator &mdash;
+       Significant Pairs Only (p &lt; 0.05)</p>
+  </div>
+
+  <div class="controls">
+    <label for="dd_x">X-axis variable:</label>
+    <select id="dd_x" onchange="updateY()">
+      <option value="AVG_FAM_SIZE">Avg. Family Size</option>
+<option value="AVG_GROSS_INC">Avg. Gross Income ($)</option>
+<option value="AVG_GROSS_RNT">Avg. Gross Rent ($)</option>
+<option value="AVG_MINORS_FAM">Avg. Minors per Family</option>
+<option value="AVG_FAM_YR_PH">Avg. Yrs. in Public Housing</option>
+<option value="TOT_FAM_1_MOREEMP_R100">Families w/ Employment (per 100 fam.)</option>
+<option value="RES_10_TO_13_R100">Res. 10-13 yrs (per 100 res.)</option>
+<option value="RES_14_TO_17_R100">Res. 14-17 yrs (per 100 res.)</option>
+<option value="RES_18_TO_20_R100">Res. 18-20 yrs (per 100 res.)</option>
+<option value="RES_21_TO_49_R100">Res. 21-49 yrs (per 100 res.)</option>
+<option value="RES_4_TO_5_R100">Res. 4-5 yrs (per 100 res.)</option>
+<option value="RES_50_TO_61_R100">Res. 50-61 yrs (per 100 res.)</option>
+<option value="RES_6_TO_9_R100">Res. 6-9 yrs (per 100 res.)</option>
+<option value="RES_62_OVER_R100">Res. 62+ yrs (per 100 res.)</option>
+<option value="RES_UNDER_4_R100">Res. <4 yrs (per 100 res.)</option>
+    </select>
+
+    <label for="dd_y">Y-axis variable:</label>
+    <select id="dd_y"></select>
+
+    <span></span>
+    <span class="note">
+      Y-axis options update automatically based on X selection.
+      Only statistically significant pairs are available.
+    </span>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-generate" onclick="generatePlot()">
+      &#9783; &nbsp; Generate Scatter Plot
+    </button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <hr class="divider">
+
+  <div id="plot_area" class="plot-container">
+    <iframe id="plot_frame" src="" title="Scatter Plot"></iframe>
+    <div style="padding: 10px 16px 14px 16px;">
+      <div class="stats-badge" id="stats_badge"></div>
+      <br>
+      <a class="plot-link" id="plot_link" href="#" target="_blank">
+        &#8599; Open in full browser tab
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Pairs data injected from Python ──────────────────────────────────────────
+const PAIRS = {
+  "AVG_FAM_SIZE": {
+    "label": "Avg. Family Size",
+    "partners": [
+      {
+        "label": "Avg. Minors per Family",
+        "file": "AVG_MINORS_FAM_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_UNDER_4_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "AVG_GROSS_RNT_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "AVG_GROSS_INC_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "AVG_FAM_YR_PH_vs_AVG_FAM_SIZE.html"
+      }
+    ]
+  },
+  "AVG_GROSS_INC": {
+    "label": "Avg. Gross Income ($)",
+    "partners": [
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "AVG_GROSS_RNT_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "AVG_FAM_YR_PH_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "AVG_GROSS_INC_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "AVG_GROSS_INC_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_UNDER_4_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_AVG_GROSS_INC.html"
+      }
+    ]
+  },
+  "AVG_GROSS_RNT": {
+    "label": "Avg. Gross Rent ($)",
+    "partners": [
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "AVG_GROSS_RNT_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "AVG_FAM_YR_PH_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "AVG_GROSS_RNT_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "AVG_GROSS_RNT_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_UNDER_4_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_AVG_GROSS_RNT.html"
+      }
+    ]
+  },
+  "AVG_MINORS_FAM": {
+    "label": "Avg. Minors per Family",
+    "partners": [
+      {
+        "label": "Avg. Family Size",
+        "file": "AVG_MINORS_FAM_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_UNDER_4_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "AVG_GROSS_RNT_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "AVG_GROSS_INC_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "AVG_FAM_YR_PH_vs_AVG_MINORS_FAM.html"
+      }
+    ]
+  },
+  "AVG_FAM_YR_PH": {
+    "label": "Avg. Yrs. in Public Housing",
+    "partners": [
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "AVG_FAM_YR_PH_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "AVG_FAM_YR_PH_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "AVG_FAM_YR_PH_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "AVG_FAM_YR_PH_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "AVG_FAM_YR_PH_vs_AVG_MINORS_FAM.html"
+      }
+    ]
+  },
+  "TOT_FAM_1_MOREEMP_R100": {
+    "label": "Families w/ Employment (per 100 fam.)",
+    "partners": [
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "TOT_FAM_1_MOREEMP_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_UNDER_4_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "AVG_FAM_YR_PH_vs_TOT_FAM_1_MOREEMP_R100.html"
+      }
+    ]
+  },
+  "RES_10_TO_13_R100": {
+    "label": "Res. 10-13 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_10_TO_13_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_10_TO_13_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_10_TO_13_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_10_TO_13_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_10_TO_13_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_10_TO_13_R100_vs_AVG_FAM_YR_PH.html"
+      }
+    ]
+  },
+  "RES_14_TO_17_R100": {
+    "label": "Res. 14-17 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_14_TO_17_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_14_TO_17_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_14_TO_17_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_14_TO_17_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_14_TO_17_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_14_TO_17_R100_vs_AVG_FAM_YR_PH.html"
+      }
+    ]
+  },
+  "RES_18_TO_20_R100": {
+    "label": "Res. 18-20 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_18_TO_20_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_18_TO_20_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_18_TO_20_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_18_TO_20_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_18_TO_20_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_18_TO_20_R100_vs_AVG_FAM_YR_PH.html"
+      }
+    ]
+  },
+  "RES_21_TO_49_R100": {
+    "label": "Res. 21-49 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_21_TO_49_R100.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_21_TO_49_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_21_TO_49_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_21_TO_49_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_21_TO_49_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_21_TO_49_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_21_TO_49_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_21_TO_49_R100_vs_AVG_FAM_YR_PH.html"
+      }
+    ]
+  },
+  "RES_4_TO_5_R100": {
+    "label": "Res. 4-5 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_4_TO_5_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_4_TO_5_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_4_TO_5_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_4_TO_5_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_4_TO_5_R100_vs_AVG_GROSS_INC.html"
+      }
+    ]
+  },
+  "RES_50_TO_61_R100": {
+    "label": "Res. 50-61 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_50_TO_61_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_50_TO_61_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_50_TO_61_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_50_TO_61_R100.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_50_TO_61_R100_vs_AVG_FAM_YR_PH.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_21_TO_49_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_50_TO_61_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_50_TO_61_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_4_TO_5_R100.html"
+      }
+    ]
+  },
+  "RES_6_TO_9_R100": {
+    "label": "Res. 6-9 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_6_TO_9_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_6_TO_9_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_6_TO_9_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_6_TO_9_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_6_TO_9_R100_vs_AVG_GROSS_INC.html"
+      }
+    ]
+  },
+  "RES_62_OVER_R100": {
+    "label": "Res. 62+ yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_62_OVER_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_14_TO_17_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_18_TO_20_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_62_OVER_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_62_OVER_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_10_TO_13_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_6_TO_9_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_50_TO_61_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_4_TO_5_R100.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_21_TO_49_R100.html"
+      },
+      {
+        "label": "Res. <4 yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_62_OVER_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_62_OVER_R100_vs_AVG_GROSS_INC.html"
+      },
+      {
+        "label": "Avg. Yrs. in Public Housing",
+        "file": "RES_62_OVER_R100_vs_AVG_FAM_YR_PH.html"
+      }
+    ]
+  },
+  "RES_UNDER_4_R100": {
+    "label": "Res. <4 yrs (per 100 res.)",
+    "partners": [
+      {
+        "label": "Res. 10-13 yrs (per 100 res.)",
+        "file": "RES_10_TO_13_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Avg. Minors per Family",
+        "file": "RES_UNDER_4_R100_vs_AVG_MINORS_FAM.html"
+      },
+      {
+        "label": "Res. 62+ yrs (per 100 res.)",
+        "file": "RES_62_OVER_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 4-5 yrs (per 100 res.)",
+        "file": "RES_4_TO_5_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 6-9 yrs (per 100 res.)",
+        "file": "RES_6_TO_9_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 18-20 yrs (per 100 res.)",
+        "file": "RES_18_TO_20_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Families w/ Employment (per 100 fam.)",
+        "file": "RES_UNDER_4_R100_vs_TOT_FAM_1_MOREEMP_R100.html"
+      },
+      {
+        "label": "Res. 14-17 yrs (per 100 res.)",
+        "file": "RES_14_TO_17_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Avg. Family Size",
+        "file": "RES_UNDER_4_R100_vs_AVG_FAM_SIZE.html"
+      },
+      {
+        "label": "Res. 21-49 yrs (per 100 res.)",
+        "file": "RES_21_TO_49_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Res. 50-61 yrs (per 100 res.)",
+        "file": "RES_50_TO_61_R100_vs_RES_UNDER_4_R100.html"
+      },
+      {
+        "label": "Avg. Gross Rent ($)",
+        "file": "RES_UNDER_4_R100_vs_AVG_GROSS_RNT.html"
+      },
+      {
+        "label": "Avg. Gross Income ($)",
+        "file": "RES_UNDER_4_R100_vs_AVG_GROSS_INC.html"
+      }
+    ]
+  }
+};
+
+// ── Populate Y dropdown based on current X selection ─────────────────────────
+function updateY() {
+  const xVal  = document.getElementById("dd_x").value;
+  const ddY   = document.getElementById("dd_y");
+  const parts = PAIRS[xVal] ? PAIRS[xVal].partners : [];
+
+  ddY.innerHTML = "";
+  parts.forEach(p => {
+    const opt   = document.createElement("option");
+    opt.value   = p.file;
+    opt.text    = p.label;
+    ddY.appendChild(opt);
+  });
+}
+
+// ── Generate plot ─────────────────────────────────────────────────────────────
+function generatePlot() {
+  const xVal    = document.getElementById("dd_x").value;
+  const ddY     = document.getElementById("dd_y");
+  const selOpt  = ddY.options[ddY.selectedIndex];
+  const htmlFile = selOpt ? selOpt.value : null;
+
+  if (!htmlFile) {
+    document.getElementById("status").textContent =
+      "No valid pair selected.";
+    return;
+  }
+
+  const xLabel  = PAIRS[xVal].label;
+  const yLabel  = selOpt.text;
+  const status  = document.getElementById("status");
+
+  status.textContent = "Loading plot...";
+
+  const frame   = document.getElementById("plot_frame");
+  const area    = document.getElementById("plot_area");
+  const link    = document.getElementById("plot_link");
+  const badge   = document.getElementById("stats_badge");
+
+  frame.src     = htmlFile;
+  link.href     = htmlFile;
+  area.classList.add("visible");
+
+  frame.onload  = function() {
+    status.textContent = "\u2714 Plot loaded. Hover over dots to identify developments.";
+    badge.textContent  = xLabel + "  \u00d7  " + yLabel;
+  };
+}
+
+// ── Initialise Y dropdown on page load ───────────────────────────────────────
+window.onload = function() {
+  updateY();
+};
+</script>
+</body>
+</html>
